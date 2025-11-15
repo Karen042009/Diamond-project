@@ -50,16 +50,18 @@ You are a strategic data analyst. Based on the data preview and columns, create 
 3.  `"visualization_code"`: A string containing Python code to generate at least four insightful visualizations. This code MUST use the processed `df` and save each plot to a file in `TEMP_CHART_DIR`, appending the path to a `chart_paths` list. IMPORTANT: Use `plt.savefig()` to save each chart, then append the path to `chart_paths`, then call `plt.close()` to free memory.
 4.  `"report_structure"`: A detailed structure for the PDF report with multiple sections. This should be a list of section objects, each with:
     - "title": The section title
-    - "content": The main content for this section (as markdown)
+    - "content": The main content for this section (as markdown) - **IMPORTANT: Each content section should be detailed and comprehensive, providing in-depth analysis and insights. Aim for at least 3-4 paragraphs of detailed explanation per section to ensure the PDF report fills multiple pages with valuable content.**
     - "type": The type of section ("text", "metrics", "recommendations", "conclusion", "charts")
     - "metrics" (optional): A dictionary of key metrics to display in this section (only for "metrics" type)
 
 Create a comprehensive, multi-page report with 5-7 sections that tell a story about the data. Include:
-- An introduction section explaining the dataset
-- Sections with key insights and metrics
-- A section with visual analysis (charts)
-- A conclusion with recommendations
-- Any other relevant sections
+- An introduction section explaining the dataset with detailed background information
+- Multiple sections with key insights and metrics, each providing extensive analysis
+- A section with visual analysis (charts) with detailed explanations of each visualization
+- A conclusion with comprehensive recommendations
+- Any other relevant sections with substantial content
+
+**IMPORTANT: Each section should contain detailed, comprehensive content that fills multiple pages. Avoid brief or superficial descriptions. Each content section should be at least 3-4 paragraphs long with detailed analysis and insights.**
 
 Example JSON output structure:
 ```json
@@ -68,17 +70,17 @@ Example JSON output structure:
         "The 'timestamp' column is critical for time-series analysis.",
         "The 'ip_address' can be used to approximate unique visitors."
     ],
-    "feature_engineering_code": "df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\\ndf.dropna(subset=['timestamp'], inplace=True)\\ndf['hour'] = df['timestamp'].dt.hour\\ndf['visits_per_ip'] = df.groupby('ip_address')['ip_address'].transform('count')",
-    "visualization_code": "plt.figure(figsize=(12, 6))\\nsns.countplot(data=df, x='hour')\\nplt.title('Visits by Hour')\\nchart_path = os.path.join(TEMP_CHART_DIR, 'hourly_visits.png')\\nplt.savefig(chart_path)\\nchart_paths.append(chart_path)\\nplt.close()",
+    "feature_engineering_code": "df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\\\\\\\\ndf.dropna(subset=['timestamp'], inplace=True)\\\\\\\\ndf['hour'] = df['timestamp'].dt.hour\\\\\\\\ndf['visits_per_ip'] = df.groupby('ip_address')['ip_address'].transform('count')",
+    "visualization_code": "plt.figure(figsize=(12, 6))\\\\\\\\nsns.countplot(data=df, x='hour')\\\\\\\\nplt.title('Visits by Hour')\\\\\\\\nchart_path = os.path.join(TEMP_CHART_DIR, 'hourly_visits.png')\\\\\\\\nplt.savefig(chart_path)\\\\\\\\nchart_paths.append(chart_path)\\\\\\\\nplt.close()",
     "report_structure": [
         {{
             "title": "Dataset Overview",
-            "content": "This report analyzes the provided dataset containing X rows and Y columns. The data includes information about...",
+            "content": "This comprehensive report provides a detailed analysis of the provided dataset containing X rows and Y columns. The data includes extensive information about various aspects of the domain being studied.\\n\\nIn this section, we will explore the fundamental characteristics of the dataset, including its structure, data types, and overall quality. We will examine the completeness of the data, identify any potential issues or anomalies, and provide insights into the data collection process.\\n\\nFurthermore, we will discuss the context in which this data was collected, the potential sources of bias or limitations, and how these factors might impact our analysis. This foundational understanding is crucial for interpreting the subsequent findings and recommendations.\\n\\nBy thoroughly understanding the dataset's composition and characteristics, we can ensure that our analysis is both accurate and meaningful, leading to actionable insights that can drive informed decision-making.",
             "type": "text"
         }},
         {{
             "title": "Key Metrics",
-            "content": "The following metrics provide an overview of the dataset characteristics.",
+            "content": "The following comprehensive metrics provide a detailed overview of the dataset characteristics and key performance indicators. These metrics have been carefully calculated and selected to offer meaningful insights into the underlying patterns and trends within the data.\\n\\nEach metric represents a specific aspect of the dataset that is crucial for understanding the overall landscape and identifying areas of interest or concern. The values presented here serve as a foundation for the more detailed analysis and recommendations that follow in subsequent sections of this report.\\n\\nBy examining these metrics in conjunction with the visual representations and narrative analysis, stakeholders can gain a holistic understanding of the dataset and make informed decisions based on the evidence presented.",
             "type": "metrics",
             "metrics": {{
                 "total_records": 1000,
@@ -87,12 +89,12 @@ Example JSON output structure:
         }},
         {{
             "title": "Visual Analysis",
-            "content": "The following charts illustrate key patterns in the data.",
+            "content": "The following comprehensive charts and visualizations provide detailed insights into the key patterns, trends, and relationships within the dataset. Each visualization has been carefully selected and designed to highlight specific aspects of the data that are crucial for understanding the overall landscape.\\n\\nThese visual representations complement the quantitative metrics and narrative analysis presented in other sections of this report, offering a multi-dimensional perspective on the dataset. By examining these charts in conjunction with the other findings, stakeholders can gain a deeper understanding of the underlying patterns and dynamics within the data.\\n\\nEach visualization is accompanied by detailed explanations and interpretations that highlight the key insights and implications. These visual analyses serve as a foundation for the recommendations and strategic insights presented in the conclusion of this report.",
             "type": "charts"
         }},
         {{
             "title": "Conclusion & Recommendations",
-            "content": "Based on the analysis, we recommend...",
+            "content": "Based on our comprehensive analysis of the dataset, we have identified several key insights and patterns that warrant careful consideration.\\n\\nOur findings reveal significant trends and relationships within the data that have important implications for decision-making and strategic planning. These insights are derived from rigorous statistical analysis and careful examination of the visual representations of the data.\\n\\nMoving forward, we recommend implementing a series of targeted actions designed to capitalize on the opportunities identified in our analysis while addressing any potential challenges or areas of concern. These recommendations are grounded in the evidence presented throughout this report and are intended to maximize the value derived from the dataset.\\n\\nIt is important to note that the success of these recommendations will depend on careful implementation and ongoing monitoring of key performance indicators. We suggest establishing a framework for regular review and adjustment of these strategies based on evolving data and changing circumstances.",
             "type": "conclusion"
         }}
     ]
@@ -109,22 +111,34 @@ Example JSON output structure:
     try:
         response = model.generate_content(prompt, safety_settings=SAFETY_SETTINGS)
         # Clean the response to ensure it's valid JSON
-        json_text_match = re.search(r"```json\n([\s\S]*?)```", response.text)
-        if not json_text_match:
-            # Try plain text search if the markdown block is missing
-            json_text_match = re.search(r"\{[\s\S]*\}", response.text)
+        json_text = response.text
 
-        if not json_text_match:
-            raise ValueError("AI response did not contain a valid JSON block.")
+        # Attempt to extract JSON from a markdown code block first
+        json_match = re.search(r"```json\n([\s\S]*?)```", json_text)
+        if json_match:
+            json_text = json_match.group(1)
 
-        json_text = json_text_match.group(0).replace("```json\n", "").replace("```", "")
-        plan = json.loads(json_text)
+        try:
+            plan = json.loads(json_text)
+        except json.JSONDecodeError:
+            # If direct parsing fails, try to find a JSON object within the text
+            json_match = re.search(r"\{[\s\S]*\}", json_text)
+            if json_match:
+                try:
+                    plan = json.loads(json_match.group(0))
+                except json.JSONDecodeError as e:
+                    raise ValueError(
+                        f"Failed to parse AI plan. Could not decode JSON from response. Error: {e}\nRaw response: {response.text}"
+                    )
+            else:
+                raise ValueError(
+                    f"Failed to parse AI plan. No JSON object found in response.\nRaw response: {response.text}"
+                )
         return plan
-    except (ValueError, AttributeError, json.JSONDecodeError) as e:
-        error_msg = f"Failed to parse AI plan. Jarvix's raw response might be invalid. Error: {e}"
-        if response:
-            error_msg += f"\nResponse: {response.text}"
-        raise ValueError(error_msg)
+    except (ValueError, AttributeError) as e:
+        raise ValueError(
+            f"Failed to parse AI plan. Jarvix's raw response might be invalid. Error: {e}\nResponse: {response.text}"
+        )
 
 
 # --- REPORTING ---

@@ -51,13 +51,30 @@ class DataScienceAgent(BaseAgent):
         yield "🔬 **Autonomous AI Analyst**: Activated."
         await asyncio.sleep(0.5)
 
+        # First, try to match full file paths (e.g., /path/to/file.csv)
+        full_path_match = re.search(r'(/[^\s\'"]+\.(?:csv|xlsx|xls))', prompt)
+        if full_path_match:
+            file_path = full_path_match.group(1).strip()
+            if os.path.exists(file_path):
+                yield f"🔍 File found at `{file_path}`. Engaging AI..."
+                await asyncio.sleep(1)
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None, run_dynamic_analysis, BASE_DIR, file_path
+                )
+                yield result
+                return
+            else:
+                yield f"❌ **Error:** File path `{file_path}` does not exist."
+                return
+
+        # Fallback: match just filename and search in common locations
         file_match = re.search(r'[\'"]?([\w\s\-\.]+\.(?:csv|xlsx|xls))[\'"]?', prompt)
         if not file_match:
-            yield "❌ **Error:** Please specify a `.csv` or `.xlsx` file name."
+            yield "❌ **Error:** Please specify a `.csv` or `.xlsx` file name or full path."
             return
 
         filename = file_match.group(1).strip()
-        # Check in uploads directory first, then downloads, then current directory
         paths_to_check = [
             os.path.join(UPLOADS_DIR, filename),
             os.path.join(DOWNLOADS_DIR, filename),
