@@ -431,6 +431,22 @@
             font-weight: 700;
             color: #4256d0;
         }
+
+        .chart-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .chart-img {
+            width: 48%;
+            border-radius: 10px;
+            border: 1px solid rgba(91, 117, 240, 0.12);
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
     </style>
 </head>
 <body>
@@ -647,6 +663,21 @@
                 <div class="empty-state">No visualisations were produced for this dataset.</div>
                 {% endif %}
             </div>
+
+            {% if chart_pairs %}
+            <div class="page-break"></div>
+            <h2 class="section-title">📊 Visualizations</h2>
+            {% for pair in chart_pairs %}
+                <div class="chart-row">
+                    {% for chart_path in pair %}
+                        <div class="chart-container">
+                            <img src="{{ chart_path }}" alt="Chart" class="chart-img"/>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if not loop.last %}<div class="page-break"></div>{% endif %}
+            {% endfor %}
+            {% endif %}
         {% endif %}
     </div>
 

@@ -70,8 +70,8 @@ Example JSON output structure:
         "The 'timestamp' column is critical for time-series analysis.",
         "The 'ip_address' can be used to approximate unique visitors."
     ],
-    "feature_engineering_code": "df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\\\\\\\\ndf.dropna(subset=['timestamp'], inplace=True)\\\\\\\\ndf['hour'] = df['timestamp'].dt.hour\\\\\\\\ndf['visits_per_ip'] = df.groupby('ip_address')['ip_address'].transform('count')",
-    "visualization_code": "plt.figure(figsize=(12, 6))\\\\\\\\nsns.countplot(data=df, x='hour')\\\\\\\\nplt.title('Visits by Hour')\\\\\\\\nchart_path = os.path.join(TEMP_CHART_DIR, 'hourly_visits.png')\\\\\\\\nplt.savefig(chart_path)\\\\\\\\nchart_paths.append(chart_path)\\\\\\\\nplt.close()",
+    "feature_engineering_code": "df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')\\ndf.dropna(subset=['timestamp'], inplace=True)\\ndf['hour'] = df['timestamp'].dt.hour\\ndf['visits_per_ip'] = df.groupby('ip_address')['ip_address'].transform('count')",
+    "visualization_code": "plt.figure(figsize=(12, 6))\\nsns.countplot(data=df, x='hour', palette='viridis')\\nplt.title('Visits by Hour')\\nchart_path = os.path.join(TEMP_CHART_DIR, 'hourly_visits.png')\\nplt.savefig(chart_path)\\nchart_paths.append(chart_path)\\nplt.close()\\n\\nplt.figure(figsize=(10, 5))\\nsns.histplot(df['visits_per_ip'], bins=20, kde=True, palette='viridis')\\nplt.title('Distribution of Visits Per IP')\\nchart_path = os.path.join(TEMP_CHART_DIR, 'visits_per_ip_distribution.png')\\nplt.savefig(chart_path)\\nchart_paths.append(chart_path)\\nplt.close()\\n\\nplt.figure(figsize=(14, 7))\\nsns.lineplot(data=df.groupby('hour').size().reset_index(name='count'), x='hour', y='count')\\nplt.title('Hourly Visit Trends')\\nchart_path = os.path.join(TEMP_CHART_DIR, 'hourly_trends.png')\\nplt.savefig(chart_path)\\nchart_paths.append(chart_path)\\nplt.close()\\n\\nplt.figure(figsize=(12, 6))\\nsns.boxplot(data=df, x='hour', y='visits_per_ip', palette='viridis')\\nplt.title('Visits Per IP by Hour')\\nchart_path = os.path.join(TEMP_CHART_DIR, 'visits_per_ip_by_hour.png')\\nplt.savefig(chart_path)\\nchart_paths.append(chart_path)\\nplt.close()",
     "report_structure": [
         {{
             "title": "Dataset Overview",
@@ -89,7 +89,7 @@ Example JSON output structure:
         }},
         {{
             "title": "Visual Analysis",
-            "content": "The following comprehensive charts and visualizations provide detailed insights into the key patterns, trends, and relationships within the dataset. Each visualization has been carefully selected and designed to highlight specific aspects of the data that are crucial for understanding the overall landscape.\\n\\nThese visual representations complement the quantitative metrics and narrative analysis presented in other sections of this report, offering a multi-dimensional perspective on the dataset. By examining these charts in conjunction with the other findings, stakeholders can gain a deeper understanding of the underlying patterns and dynamics within the data.\\n\\nEach visualization is accompanied by detailed explanations and interpretations that highlight the key insights and implications. These visual analyses serve as a foundation for the recommendations and strategic insights presented in the conclusion of this report.",
+            "content": "The following comprehensive charts and visualizations provide detailed insights into the key patterns, trends, and relationships within the dataset. Each visualization has been carefully selected and designed to highlight specific aspects of the data that is crucial for understanding the overall landscape.\\n\\nThese visual representations complement the quantitative metrics and narrative analysis presented in other sections of this report, offering a multi-dimensional perspective on the dataset. By examining these charts in conjunction with the other findings, stakeholders can gain a deeper understanding of the underlying patterns and dynamics within the data.\\n\\nEach visualization is accompanied by detailed explanations and interpretations that highlight the key insights and implications. These visual analyses serve as a foundation for the recommendations and strategic insights presented in the conclusion of this report.",
             "type": "charts"
         }},
         {{
@@ -106,6 +106,7 @@ Example JSON output structure:
 - In visualization_code: Only use variables df, pd, np, plt, sns, os, TEMP_CHART_DIR, chart_paths. Do NOT reference variables from feature_engineering_code unless they are columns in df.
 - Each line of code should be independent and not rely on variables created in previous lines (unless they are DataFrame columns).
 - For the report_structure, create a compelling narrative that guides the reader through the analysis.
+- In feature_engineering_code: Do NOT create intermediate variables that are not immediately used to create a new column in the DataFrame. All operations should directly modify `df` or create new columns on `df`.
 """
     response = None
     try:
@@ -207,10 +208,15 @@ def generate_pdf_report(
             "file_name": base_path.name,
             "file_path": csv_path,
             "sections": processed_sections,
-            "chart_paths": charts,  # Keep for backward compatibility
+            "chart_pairs": [
+                charts[i : i + 2] for i in range(0, len(charts), 2)
+            ],  # Group charts for AI structure
         }
     else:
         # Fallback to the original approach
+        # Group charts into pairs for PDF layout
+        chart_pairs = [charts[i : i + 2] for i in range(0, len(charts), 2)]
+
         template_vars = {
             "report_title": f"Automated Analysis of {base_path.name}",
             "custom_title": f"Jarvix Insights · {dataset_label}",
@@ -219,13 +225,18 @@ def generate_pdf_report(
             "file_path": csv_path,
             "strategic_recommendations": summary.pop("strategic_recommendations", []),
             "analysis_summary": summary,
-            "chart_paths": charts,
+            "chart_pairs": chart_pairs,  # Pass grouped charts
         }
 
     html_out = template.render(template_vars)
     report_filename = f"Jarvix_Report_{dataset_slug}_{timestamp}.pdf"
     report_path = os.path.join(OUTPUT_DIR, report_filename)
-    HTML(string=html_out, base_url=str(TEMP_CHART_DIR)).write_pdf(report_path)
+
+    try:
+        HTML(string=html_out, base_url=str(TEMP_CHART_DIR)).write_pdf(report_path)
+    except Exception as e:
+        raise IOError(f"Failed to generate PDF report. Error: {e}")
+
     return report_path
 
 
