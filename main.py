@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jarvix_logic import jarvix_main_router
+from typing import List
 
 app = FastAPI(title="Jarvix AI Assistant")
 
@@ -95,17 +96,30 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 @app.post("/upload")
-async def upload_file(files: list[UploadFile] = File(...)):
-    """Handle file uploads"""
+async def upload_file(files: List[UploadFile] = File(...)):
+    """Handle file uploads and automatically trigger analysis"""
     uploaded_files = []
+    analysis_results = []
+    
     for file in files:
+        # Handle case where filename might be None
+        filename = file.filename if file.filename is not None else "unnamed_file"
+        
         # Save file to uploads directory
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        file_path = os.path.join(UPLOAD_DIR, filename)
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
         uploaded_files.append(
-            {"filename": file.filename, "size": len(content), "path": file_path}
+            {"filename": filename, "size": len(content), "path": file_path}
         )
+        
+        # Automatically trigger analysis for supported file types
+        if filename.endswith(('.csv', '.xlsx', '.xls')):
+            analysis_results.append({
+                "filename": filename,
+                "status": "queued",
+                "message": f"Analysis of {filename} has been queued."
+            })
 
-    return {"uploaded_files": uploaded_files}
+    return {"uploaded_files": uploaded_files, "analysis_results": analysis_results}

@@ -184,19 +184,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function processFiles(files) {
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            // Check if file type is supported
-            if (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                // Check if file is already in the list
-                if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
-                    uploadedFiles.push(file);
-                    addFileToList(file);
+        // Upload files to server
+        uploadFiles(files).then(response => {
+            // Add files to the list
+            response.uploaded_files.forEach(file => {
+                if (!uploadedFiles.some(f => f.name === file.filename && f.size === file.size)) {
+                    const fileObj = new File([new Blob()], file.filename, { size: file.size });
+                    uploadedFiles.push(fileObj);
+                    addFileToList(fileObj);
                 }
-            }
-        }
+            });
+            
+            // Automatically analyze supported files
+            response.analysis_results.forEach(result => {
+                if (result.status === 'queued') {
+                    // Automatically send analysis command
+                    const commandId = `cmd-${Date.now()}`;
+                    createUserMessage(`Analyze ${result.filename}`);
+                    createJarvixResponseContainer(commandId);
+                    socket.send(JSON.stringify({ 
+                        id: commandId, 
+                        prompt: `Analyze ${result.filename}` 
+                    }));
+                }
+            });
+        }).catch(error => {
+            console.error('File upload error:', error);
+        });
+        
         // Reset file input
         fileInput.value = '';
+    }
+
+    function uploadFiles(files) {
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        
+        return fetch('/upload', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json());
     }
 
     function addFileToList(file) {

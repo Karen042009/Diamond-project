@@ -1,7 +1,7 @@
 import os
 import asyncio
 import re
-from typing import AsyncGenerator, Type, List
+from typing import AsyncGenerator, Type, List, Optional
 import google.generativeai as genai
 from config import settings, BASE_DIR
 from agents.data_scientist import run_dynamic_analysis, SAFETY_SETTINGS
@@ -10,6 +10,7 @@ from agents.data_scientist import run_dynamic_analysis, SAFETY_SETTINGS
 genai.configure(api_key=settings.GOOGLE_API_KEY)
 USER_HOME = os.path.expanduser("~")
 DOWNLOADS_DIR = os.path.join(USER_HOME, "Downloads")
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 
 # --- Agent Base Class ---
 class BaseAgent:
@@ -21,7 +22,7 @@ class BaseAgent:
         """Checks if the agent's keywords are in the user's prompt."""
         return any(keyword in prompt.lower() for keyword in cls.keywords)
     
-    async def execute(self, prompt: str, websocket, command_id: str = None) -> AsyncGenerator[str, None]:
+    async def execute(self, prompt: str, websocket, command_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """The main execution logic for the agent."""
         raise NotImplementedError
 
@@ -29,27 +30,32 @@ class BaseAgent:
 class DataScienceAgent(BaseAgent):
     """Handles requests for data analysis on CSV or Excel files."""
     keywords = ["analyze", "analysis", "process", "visualize", "report", ".csv", ".xlsx"]
-
-    async def execute(self, prompt: str, websocket, command_id: str = None) -> AsyncGenerator[str, None]:
+    
+    async def execute(self, prompt: str, websocket, command_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         yield "🔬 **Autonomous AI Analyst**: Activated."
         await asyncio.sleep(0.5)
-
+        
         file_match = re.search(r'[\'"]?([\w\s\-\.]+\.(?:csv|xlsx|xls))[\'"]?', prompt)
         if not file_match:
             yield "❌ **Error:** Please specify a `.csv` or `.xlsx` file name."
             return
             
         filename = file_match.group(1).strip()
-        paths_to_check = [os.path.join(DOWNLOADS_DIR, filename), filename]
+        # Check in uploads directory first, then downloads, then current directory
+        paths_to_check = [
+            os.path.join(UPLOADS_DIR, filename),
+            os.path.join(DOWNLOADS_DIR, filename),
+            filename
+        ]
         file_path = next((path for path in paths_to_check if os.path.exists(path)), None)
-
+        
         if not file_path:
-            yield f"❌ **Error:** File `{filename}` not found in Downloads or project directory."
+            yield f"❌ **Error:** File `{filename}` not found in Uploads, Downloads, or project directory."
             return
             
         yield f"🔍 File found at `{file_path}`. Engaging AI..."
         await asyncio.sleep(1)
-
+        
         # Run the heavy data processing in a separate thread to not block the server
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, run_dynamic_analysis, BASE_DIR, file_path)
@@ -58,7 +64,7 @@ class DataScienceAgent(BaseAgent):
 class CalendarAgent(BaseAgent):
     """A placeholder agent to demonstrate multi-agent capability."""
     keywords = ["calendar", "event", "meeting", "schedule"]
-    async def execute(self, prompt: str, websocket, command_id: str = None) -> AsyncGenerator[str, None]:
+    async def execute(self, prompt: str, websocket, command_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         yield "📅 **Calendar Agent**: Simulating..."
         await asyncio.sleep(1)
         yield "👍 **Success:** Event scheduled (simulation)."
@@ -74,7 +80,7 @@ ALWAYS RESPOND IN ENGLISH, regardless of what language the user writes in.
 Be friendly, professional, and helpful.
 If the question is in another language, respond in English while preserving the meaning of the question."""
     
-    async def execute(self, prompt: str, websocket, command_id: str = None) -> AsyncGenerator[str, None]:
+    async def execute(self, prompt: str, websocket, command_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         model = genai.GenerativeModel(
             'gemini-flash-latest',
             system_instruction=self.SYSTEM_INSTRUCTIONS
@@ -95,7 +101,7 @@ If the question is in another language, respond in English while preserving the 
 # --- AGENT REGISTRY & ROUTER ---
 SPECIFIC_AGENTS: List[Type[BaseAgent]] = [ DataScienceAgent, CalendarAgent ]
 
-async def jarvix_main_router(prompt: str, websocket, command_id: str = None) -> AsyncGenerator[str, None]:
+async def jarvix_main_router(prompt: str, websocket, command_id: Optional[str] = None) -> AsyncGenerator[str, None]:
     """Finds the appropriate agent and executes the prompt."""
     for agent_class in SPECIFIC_AGENTS:
         if agent_class.can_handle(prompt):
