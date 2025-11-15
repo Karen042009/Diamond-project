@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+jinja2
+websockets
+google-generativeai
+python-dotenv
+pandas
+matplotlib
+seaborn
+weasyprint
+scikit-learn
+numpy
+openpyxl
+python-docx
+flake8
+python-multipart
